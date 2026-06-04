@@ -120,7 +120,12 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 p-6 text-slate-200">
       <header className="flex justify-between items-center mb-10 max-w-4xl mx-auto border-b border-slate-800 pb-6">
         <h1 className="text-2xl font-black text-cyan-400 flex items-center gap-2"><Shield /> 指揮中心</h1>
-        <button onClick={() => signOut(auth)} className="text-red-400"><LogOut size={20} /></button>
+        <div className="flex gap-2 text-sm">
+          <button onClick={() => setActiveTab('manage')} className={activeTab === 'manage' ? 'text-white underline' : 'text-slate-500'}>管理</button>
+          <button onClick={() => setActiveTab('scan')} className={activeTab === 'scan' ? 'text-white underline' : 'text-slate-500'}>簽到</button>
+          <button onClick={() => setActiveTab('rank')} className={activeTab === 'rank' ? 'text-white underline' : 'text-slate-500'}>排行</button>
+          <button onClick={() => setIsLoggedIn(false)} className="text-red-400 ml-4"><LogOut size={16} /></button>
+        </div>
       </header>
 
       <div className="max-w-4xl mx-auto space-y-6">
