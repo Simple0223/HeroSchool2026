@@ -24,6 +24,12 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [teams, setTeams] = useState([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [newMemberInputs, setNewMemberInputs] = useState({});
+  const [scoreAdjustments, setScoreAdjustments] = useState({});
+  const [activeTab, setActiveTab] = useState('manage');
+  const [scanResult, setScanResult] = useState(null);
+  const [scannedName, setScannedName] = useState('');
+  const [accessCode, setAccessCode] = useState('');
 
   // 1. 登入狀態監聽
   useEffect(() => {
