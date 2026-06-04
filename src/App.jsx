@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
-import { getFirestore, collection, onSnapshot, query, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
@@ -76,6 +76,15 @@ export default function App() {
   const updateTeam = async (id, data) => await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id), data);
   const deleteTeam = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id));
 
+  const handleManualLogin = () => {
+  if (accessCode === 'hero2026') {
+     // 這裡是關鍵：這裡才真正開始建立安全連線
+     setIsLoggedIn(true); 
+  } else {
+     alert("授權碼錯誤！");
+  }
+};
+  
   const addMember = async (team) => {
     const name = newMemberInputs[team.id];
     if (name && name.trim()) {
