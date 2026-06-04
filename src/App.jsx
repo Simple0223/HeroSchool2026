@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
+import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
+
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
   authDomain: "heroschool2026.firebaseapp.com",
@@ -29,30 +30,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('manage');
   const [scanResult, setScanResult] = useState(null);
   const [scannedName, setScannedName] = useState('');
-  const [accessCode, setAccessCode] = useState('');
 
-  // 1. 登入狀態監聽
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setIsLoggedIn(!!currentUser); // 如果有使用者物件則為 true
+      setIsLoggedIn(!!currentUser);
     });
     return () => unsubscribe();
-  }, []);
-  
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (!auth.currentUser) {
-           if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-             await signInWithCustomToken(auth, __initial_auth_token);
-           } else {
-             await signInAnonymously(auth);
-           }
-        }
-      } catch (err) { console.error("驗證失敗:", err); }
-    };
-    initAuth();
   }, []);
 
   useEffect(() => {
@@ -63,34 +47,30 @@ export default function App() {
     }, (err) => console.error("資料獲取失敗:", err));
     return () => unsubscribe();
   }, [user]);
-
+  
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error("Google 登入失敗:", err);
-    }
+    } catch (err) { console.error("Google 登入失敗:", err); }
   };
 
   const addTeam = async () => {
-    if (!newTeamName.trim()) return;
+    if (!user || !newTeamName.trim()) return;
     await addDoc(getTeamCollection(user.uid), { name: newTeamName, score: 0, members: [], captain: '', viceCaptain: '' });
     setNewTeamName('');
   };
 
-  const updateTeam = async (id, data) => await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id), data);
-  const deleteTeam = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id));
+  const updateTeam = async (id, data) => {
+    if (!user) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id), data);
+  };
 
-  const handleManualLogin = () => {
-  if (accessCode === 'hero2026') {
-     // 這裡是關鍵：這裡才真正開始建立安全連線
-     setIsLoggedIn(true); 
-  } else {
-     alert("授權碼錯誤！");
-  }
-};
-  
+  const deleteTeam = async (id) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id));
+  };
+
   const addMember = async (team) => {
     const name = newMemberInputs[team.id];
     if (name && name.trim()) {
@@ -101,9 +81,8 @@ export default function App() {
 
   const applyScoreAdjustment = (team, operation) => {
     const val = parseInt(scoreAdjustments[team.id] || 0);
-    if (isNaN(val)) return;
-    const currentScore = team.score || 0;
-    const newScore = operation === 'add' ? currentScore + val : currentScore - val;
+    if (isNaN(val) || !user) return;
+    const newScore = operation === 'add' ? (team.score || 0) + val : (team.score || 0) - val;
     updateTeam(team.id, { score: newScore });
   };
 
@@ -116,22 +95,22 @@ export default function App() {
             setScannedName(inputName);
             setTimeout(() => { setScanResult(null); setScannedName(''); }, 3000);
         } else {
-            setScanResult(null);
-            setScannedName('查無此人');
+            setScanResult(null); setScannedName('查無此人');
             setTimeout(() => { setScannedName(''); }, 3000);
         }
         e.target.value = '';
     }
   };
-
+  
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 text-center w-full max-w-sm">
           <Cpu size={48} className="text-cyan-400 mx-auto mb-6" />
           <h2 className="text-xl font-bold text-white mb-6">指揮中心登入</h2>
-          <input type="password" placeholder="輸入授權碼" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white p-3 rounded-lg text-center mb-4" />
-          <button onClick={() => { if(accessCode === 'hero2026') setIsLoggedIn(true); }} className="w-full bg-cyan-600 text-white px-8 py-3 rounded-xl font-bold">建立安全連線</button>
+          <button onClick={handleGoogleLogin} className="w-full bg-white text-slate-900 px-8 py-3 rounded-xl font-bold">
+            使用 Google 帳號登入
+          </button>
         </div>
       </div>
     );
@@ -141,12 +120,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 p-6 text-slate-200">
       <header className="flex justify-between items-center mb-10 max-w-4xl mx-auto border-b border-slate-800 pb-6">
         <h1 className="text-2xl font-black text-cyan-400 flex items-center gap-2"><Shield /> 指揮中心</h1>
-        <div className="flex gap-2 text-sm">
-          <button onClick={() => setActiveTab('manage')} className={activeTab === 'manage' ? 'text-white underline' : 'text-slate-500'}>管理</button>
-          <button onClick={() => setActiveTab('scan')} className={activeTab === 'scan' ? 'text-white underline' : 'text-slate-500'}>簽到</button>
-          <button onClick={() => setActiveTab('rank')} className={activeTab === 'rank' ? 'text-white underline' : 'text-slate-500'}>排行</button>
-          <button onClick={() => setIsLoggedIn(false)} className="text-red-400 ml-4"><LogOut size={16} /></button>
-        </div>
+        <button onClick={() => signOut(auth)} className="text-red-400"><LogOut size={20} /></button>
       </header>
 
       <div className="max-w-4xl mx-auto space-y-6">
