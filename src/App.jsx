@@ -10,8 +10,8 @@ const firebaseConfig = {
   projectId: "heroschool2026",
   storageBucket: "heroschool2026.firebasestorage.app",
   messagingSenderId: "70652055677",
-  appId: "1:70652055677:web:8ae651fb1d4950bfb6e114",
-  measurementId: "G-8NS3M9RFBE"
+  appId: "1:70652055677:web:1fc54f98b315c963b6e114",
+  measurementId: "G-BMX5X1E85Z"
 };
 
 const app = initializeApp(firebaseConfig);
