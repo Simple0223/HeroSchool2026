@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
+import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy, XCircle } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
@@ -13,7 +13,6 @@ const firebaseConfig = {
   appId: "1:70652055677:web:1fc54f98b315c963b6e114",
   measurementId: "G-BMX5X1E85Z"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -31,6 +30,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('manage');
   const [scanResult, setScanResult] = useState(null);
   const [accessCode, setAccessCode] = useState('');
+  const [scanInput, setScanInput] = useState('');
 
   useEffect(() => {
     const initAuth = async () => {
@@ -78,26 +78,25 @@ export default function App() {
     setScoreAdjustments(prev => ({ ...prev, [team.id]: '' }));
   };
 
-  const handleScan = (e) => {
-    if(e.key === 'Enter') {
-      const inputCode = e.target.value.trim();
-      let foundMember = null;
-      let foundTeam = null;
+  const processScan = (inputCode) => {
+    const code = inputCode.trim();
+    if (code.length < 3) return;
 
-      teams.forEach(t => {
-        const m = (t.members || []).find(mem => mem.code === inputCode);
-        if (m) { foundMember = m; foundTeam = t; }
-      });
+    let foundMember = null;
+    let foundTeam = null;
 
-      if(foundMember) {
-        setScanResult({ ...foundMember, teamName: foundTeam.name, teamScore: foundTeam.score });
-        setTimeout(() => setScanResult(null), 3000);
-      } else {
-        setScanResult({ name: '查無此人', code: '無效代碼' });
-        setTimeout(() => setScanResult(null), 3000);
-      }
-      e.target.value = '';
+    teams.forEach(t => {
+      const m = (t.members || []).find(mem => mem.code === code);
+      if (m) { foundMember = m; foundTeam = t; }
+    });
+
+    if(foundMember) {
+      setScanResult({ type: 'success', ...foundMember, teamName: foundTeam.name, teamScore: foundTeam.score });
+    } else {
+      setScanResult({ type: 'error', name: '查無此人', code: '無效代碼' });
     }
+    setTimeout(() => setScanResult(null), 3000);
+    setScanInput('');
   };
 
   if (!isLoggedIn) {
@@ -177,13 +176,23 @@ export default function App() {
         ) : (
           <div className="bg-slate-900 p-8 rounded-xl text-center border border-slate-800">
             <Search className="mx-auto mb-4 text-cyan-500" size={48} />
-            <input autoFocus className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-white" placeholder="請掃描辨認碼以簽到..." onKeyDown={handleScan} />
+            <input autoFocus className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-white" placeholder="請掃描辨認碼以自動簽到..." value={scanInput} onChange={(e) => { setScanInput(e.target.value); processScan(e.target.value); }} />
             {scanResult && (
-                <div className="mt-8 p-6 bg-slate-800 rounded-xl text-center border border-cyan-500">
-                    <CheckCircle2 className="mx-auto text-green-500 mb-2" size={48} />
-                    <h2 className="text-2xl font-bold text-white mb-2">{scanResult.name}</h2>
-                    <p className="text-cyan-400 text-lg">所屬隊伍: {scanResult.teamName}</p>
-                    <p className="text-white text-xl font-bold mt-2">目前隊伍積分: {scanResult.teamScore} pts</p>
+                <div className={`mt-8 p-6 bg-slate-800 rounded-xl text-center border ${scanResult.type === 'error' ? 'border-red-500' : 'border-cyan-500'}`}>
+                    {scanResult.type === 'success' ? (
+                        <>
+                            <CheckCircle2 className="mx-auto text-green-500 mb-2" size={48} />
+                            <h2 className="text-2xl font-bold text-white mb-2">{scanResult.name}</h2>
+                            <p className="text-cyan-400 text-lg">所屬隊伍: {scanResult.teamName}</p>
+                            <p className="text-white text-xl font-bold mt-2">目前隊伍積分: {scanResult.teamScore} pts</p>
+                        </>
+                    ) : (
+                        <>
+                            <XCircle className="mx-auto text-red-500 mb-2" size={48} />
+                            <h2 className="text-2xl font-bold text-white mb-2">查無此人</h2>
+                            <p className="text-slate-400">請確認辨識碼是否正確</p>
+                        </>
+                    )}
                 </div>
             )}
           </div>
