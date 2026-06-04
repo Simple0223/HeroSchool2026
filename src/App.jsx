@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "firebase/auth";
+import { getFirestore, collection, onSnapshot, query, addDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
@@ -18,7 +17,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'cyber-sync-app';
-
 const getTeamCollection = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'teams');
 
 export default function App() {
@@ -26,33 +24,48 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [teams, setTeams] = useState([]);
   const [newTeamName, setNewTeamName] = useState('');
-  const [newMemberInputs, setNewMemberInputs] = useState({});
-  const [scoreAdjustments, setScoreAdjustments] = useState({});
-  const [activeTab, setActiveTab] = useState('manage');
-  const [scanResult, setScanResult] = useState(null);
-  const [scannedName, setScannedName] = useState('');
-  const [accessCode, setAccessCode] = useState('');
 
+  // 1. 登入狀態監聽
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsLoggedIn(!!currentUser); // 如果有使用者物件則為 true
+    });
+    return () => unsubscribe();
+  }, []);
+  
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-        else await signInAnonymously(auth);
+        if (!auth.currentUser) {
+           if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+             await signInWithCustomToken(auth, __initial_auth_token);
+           } else {
+             await signInAnonymously(auth);
+           }
+        }
       } catch (err) { console.error("驗證失敗:", err); }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!user || !isLoggedIn) return;
+    if (!user) return;
     const q = query(getTeamCollection(user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, (err) => console.error("資料獲取失敗:", err));
     return () => unsubscribe();
-  }, [user, isLoggedIn]);
+  }, [user]);
+
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error("Google 登入失敗:", err);
+    }
+  };
 
   const addTeam = async () => {
     if (!newTeamName.trim()) return;
