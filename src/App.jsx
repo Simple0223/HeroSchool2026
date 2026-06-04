@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
@@ -18,6 +18,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'cyber-sync-app';
+
 const getTeamCollection = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'teams');
 
 export default function App() {
@@ -30,46 +31,37 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('manage');
   const [scanResult, setScanResult] = useState(null);
   const [scannedName, setScannedName] = useState('');
+  const [accessCode, setAccessCode] = useState('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsLoggedIn(!!currentUser);
-    });
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+        else await signInAnonymously(auth);
+      } catch (err) { console.error("驗證失敗:", err); }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isLoggedIn) return;
     const q = query(getTeamCollection(user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (err) => console.error("資料獲取失敗:", err));
+    });
     return () => unsubscribe();
-  }, [user]);
-  
-  const handleGoogleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) { console.error("Google 登入失敗:", err); }
-  };
+  }, [user, isLoggedIn]);
 
   const addTeam = async () => {
-    if (!user || !newTeamName.trim()) return;
+    if (!newTeamName.trim()) return;
     await addDoc(getTeamCollection(user.uid), { name: newTeamName, score: 0, members: [], captain: '', viceCaptain: '' });
     setNewTeamName('');
   };
 
-  const updateTeam = async (id, data) => {
-    if (!user) return;
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id), data);
-  };
-
-  const deleteTeam = async (id) => {
-    if (!user) return;
-    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id));
-  };
+  const updateTeam = async (id, data) => await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id), data);
+  const deleteTeam = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id));
 
   const addMember = async (team) => {
     const name = newMemberInputs[team.id];
@@ -81,8 +73,9 @@ export default function App() {
 
   const applyScoreAdjustment = (team, operation) => {
     const val = parseInt(scoreAdjustments[team.id] || 0);
-    if (isNaN(val) || !user) return;
-    const newScore = operation === 'add' ? (team.score || 0) + val : (team.score || 0) - val;
+    if (isNaN(val)) return;
+    const currentScore = team.score || 0;
+    const newScore = operation === 'add' ? currentScore + val : currentScore - val;
     updateTeam(team.id, { score: newScore });
   };
 
@@ -95,22 +88,22 @@ export default function App() {
             setScannedName(inputName);
             setTimeout(() => { setScanResult(null); setScannedName(''); }, 3000);
         } else {
-            setScanResult(null); setScannedName('查無此人');
+            setScanResult(null);
+            setScannedName('查無此人');
             setTimeout(() => { setScannedName(''); }, 3000);
         }
         e.target.value = '';
     }
   };
-  
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="bg-slate-900 p-8 rounded-2xl border border-slate-700 text-center w-full max-w-sm">
           <Cpu size={48} className="text-cyan-400 mx-auto mb-6" />
           <h2 className="text-xl font-bold text-white mb-6">指揮中心登入</h2>
-          <button onClick={handleGoogleLogin} className="w-full bg-white text-slate-900 px-8 py-3 rounded-xl font-bold">
-            使用 Google 帳號登入
-          </button>
+          <input type="password" placeholder="輸入授權碼" value={accessCode} onChange={(e) => setAccessCode(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white p-3 rounded-lg text-center mb-4" />
+          <button onClick={() => { if(accessCode === 'hero2026') setIsLoggedIn(true); }} className="w-full bg-cyan-600 text-white px-8 py-3 rounded-xl font-bold">建立安全連線</button>
         </div>
       </div>
     );
