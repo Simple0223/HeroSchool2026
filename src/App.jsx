@@ -4,7 +4,16 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy } from 'lucide-react';
 
-const firebaseConfig = JSON.parse(__firebase_config);
+const firebaseConfig = {
+  apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
+  authDomain: "heroschool2026.firebaseapp.com",
+  projectId: "heroschool2026",
+  storageBucket: "heroschool2026.firebasestorage.app",
+  messagingSenderId: "70652055677",
+  appId: "1:70652055677:web:8ae651fb1d4950bfb6e114",
+  measurementId: "G-8NS3M9RFBE"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
