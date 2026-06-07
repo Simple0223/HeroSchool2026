@@ -5,13 +5,13 @@ import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteD
 import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy, XCircle, Unlock, Edit2, Save } from 'lucide-react';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
-  authDomain: "heroschool2026.firebaseapp.com",
-  projectId: "heroschool2026",
-  storageBucket: "heroschool2026.firebasestorage.app",
-  messagingSenderId: "70652055677",
-  appId: "1:70652055677:web:1fc54f98b315c963b6e114",
-  measurementId: "G-BMX5X1E85Z"
+  apiKey: "AIzaSyA6rFDkIZRTWvegj5h6Z2cCEGg1DA82Gb0",
+  authDomain: "heroschool2026-c98e2.firebaseapp.com",
+  projectId: "heroschool2026-c98e2",
+  storageBucket: "heroschool2026-c98e2.firebasestorage.app",
+  messagingSenderId: "72603879659",
+  appId: "1:72603879659:web:cf0ae2db0745dee66d56ae",
+  measurementId: "G-CTEZ314RWJ"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
