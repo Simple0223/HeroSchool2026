@@ -40,19 +40,61 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    const teamsCol = collection(db, 'artifacts', appId, 'users', user.uid, 'teams');
-    const unsubscribe = onSnapshot(query(teamsCol), (snapshot) => {
-      setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => unsubscribe();
-  }, [user]);
+ useEffect(() => {
+  if (!user) return;
 
-  const safeDoc = (id) => doc(db, 'artifacts', appId, 'users', user.uid, 'teams', id);
+  const teamsCol = collection(
+    db,
+    'artifacts',
+    appId,
+    'shared',
+    'teams',
+    'data'
+  );
+
+  const unsubscribe = onSnapshot(
+    query(teamsCol),
+    (snapshot) => {
+      setTeams(
+        snapshot.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        }))
+      );
+    }
+  );
+
+  return () => unsubscribe();
+}, [user]);
+
+const safeDoc = (id) =>
+  doc(
+    db,
+    'artifacts',
+    appId,
+    'shared',
+    'teams',
+    'data',
+    id
+  );
+  
   const addTeam = async () => {
     if (!newTeamName.trim() || !user) return;
-    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'teams'), { name: newTeamName, score: 0, members: [] });
+await addDoc(
+  collection(
+    db,
+    'artifacts',
+    appId,
+    'shared',
+    'teams',
+    'data'
+  ),
+  {
+    name: newTeamName,
+    score: 0,
+    members: []
+  }
+);
     setNewTeamName('');
   };
 
