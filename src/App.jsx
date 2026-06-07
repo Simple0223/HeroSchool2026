@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy, XCircle, Unlock } from 'lucide-react';
+import { Cpu, Trash2, Plus, UserMinus, Shield, LogOut, Search, UserPlus, ChevronUp, ChevronDown, CheckCircle2, Trophy, XCircle, Unlock, Edit2, Save } from 'lucide-react';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-h2xUbIB1LDbRV7VjFZqzCIsjE2KP5HE",
@@ -24,7 +24,9 @@ export default function App() {
   const [teams, setTeams] = useState([]);
   const [newTeamName, setNewTeamName] = useState('');
   const [memberData, setMemberData] = useState({ name: '', code: '' });
-  const [scoreInputs, setScoreInputs] = useState({}); // 用於暫存手動輸入的數值
+  const [scoreInputs, setScoreInputs] = useState({});
+  const [editingTeamId, setEditingTeamId] = useState(null);
+  const [editName, setEditName] = useState('');
   const [activeTab, setActiveTab] = useState('scan');
   const [scanResult, setScanResult] = useState(null);
   const [accessCode, setAccessCode] = useState('');
@@ -56,6 +58,7 @@ export default function App() {
 
   const updateTeam = async (id, data) => await updateDoc(safeDoc(id), data);
   const deleteTeam = async (id) => await deleteDoc(safeDoc(id));
+  
   const addMember = async (team) => {
     if (!memberData.name || !memberData.code) return;
     const newMembers = [...(team.members || []), { name: memberData.name, code: memberData.code }];
@@ -63,15 +66,20 @@ export default function App() {
     setMemberData({ name: '', code: '' });
   };
 
-  // 手動調整積分邏輯
+  const saveTeamName = async (id) => {
+    if (editName.trim()) {
+      await updateTeam(id, { name: editName });
+    }
+    setEditingTeamId(null);
+  };
+
   const handleScoreChange = (teamId, operation) => {
     const val = parseInt(scoreInputs[teamId] || 0);
     if (isNaN(val)) return;
     const team = teams.find(t => t.id === teamId);
-    const currentScore = team.score || 0;
-    const newScore = operation === 'add' ? currentScore + val : currentScore - val;
+    const newScore = operation === 'add' ? (team.score || 0) + val : (team.score || 0) - val;
     updateTeam(teamId, { score: newScore });
-    setScoreInputs(prev => ({ ...prev, [teamId]: '' })); // 清空輸入框
+    setScoreInputs(prev => ({ ...prev, [teamId]: '' }));
   };
 
   const processScan = (inputCode) => {
@@ -86,21 +94,25 @@ export default function App() {
     setScanInput('');
   };
 
+  const getRankIcon = (index) => {
+    const colors = ["text-yellow-400", "text-slate-300", "text-amber-700"];
+    return <Trophy className={colors[index] || "text-slate-500"} size={20} />;
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 p-6 text-slate-200">
       <header className="flex justify-between items-center mb-10 max-w-4xl mx-auto border-b border-slate-800 pb-6">
         <h1 className="text-2xl font-black text-cyan-400 flex items-center gap-2"><Shield /> 指揮中心</h1>
         <div className="flex gap-4 text-sm font-bold">
           <button onClick={() => setActiveTab('scan')} className={activeTab === 'scan' ? 'text-white' : 'text-slate-500'}>簽到</button>
-          {isLoggedIn ? (
+          {isLoggedIn && (
             <>
               <button onClick={() => setActiveTab('manage')} className={activeTab === 'manage' ? 'text-white' : 'text-slate-500'}>管理</button>
               <button onClick={() => setActiveTab('rank')} className={activeTab === 'rank' ? 'text-white' : 'text-slate-500'}>排行</button>
               <button onClick={() => setIsLoggedIn(false)} className="text-red-400 ml-4"><LogOut size={16} /></button>
             </>
-          ) : (
-            <button onClick={() => setActiveTab('login')} className="text-cyan-400 flex items-center gap-1"><Unlock size={14}/> 登入</button>
           )}
+          {!isLoggedIn && <button onClick={() => setActiveTab('login')} className="text-cyan-400 flex items-center gap-1"><Unlock size={14}/> 登入</button>}
         </div>
       </header>
 
@@ -131,7 +143,17 @@ export default function App() {
             {teams.map(t => (
               <div key={t.id} className="bg-slate-900 p-6 rounded-xl border border-slate-800">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-xl">{t.name} <span className="text-cyan-400 font-mono">({t.score || 0} pts)</span></h3>
+                  {editingTeamId === t.id ? (
+                    <div className="flex gap-2">
+                      <input className="bg-slate-950 p-1 rounded" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                      <button onClick={() => saveTeamName(t.id)} className="text-green-400"><Save size={20}/></button>
+                    </div>
+                  ) : (
+                    <h3 className="font-bold text-xl flex items-center gap-2">
+                        {t.name} <span className="text-cyan-400 font-mono text-sm">({t.score || 0} pts)</span>
+                        <button onClick={() => { setEditingTeamId(t.id); setEditName(t.name); }} className="text-slate-500 hover:text-white"><Edit2 size={16}/></button>
+                    </h3>
+                  )}
                   <div className="flex items-center gap-2">
                     <input type="number" className="w-16 bg-slate-950 p-1 rounded text-center text-sm" placeholder="數值" onChange={(e) => setScoreInputs({...scoreInputs, [t.id]: e.target.value})} value={scoreInputs[t.id] || ''} />
                     <button onClick={() => handleScoreChange(t.id, 'add')} className="bg-green-900 p-1 rounded text-green-400"><ChevronUp size={20}/></button>
@@ -140,8 +162,8 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex gap-2 mb-2">
-                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="姓名" onChange={(e) => setMemberData({...memberData, name: e.target.value})}/>
-                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="代碼" onChange={(e) => setMemberData({...memberData, code: e.target.value})}/>
+                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="姓名" value={memberData.name} onChange={(e) => setMemberData({...memberData, name: e.target.value})}/>
+                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="代碼" value={memberData.code} onChange={(e) => setMemberData({...memberData, code: e.target.value})}/>
                   <button onClick={() => addMember(t)} className="bg-cyan-800 p-2 rounded flex-1"><UserPlus size={16}/></button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -155,7 +177,10 @@ export default function App() {
           <div className="space-y-4">
             {[...teams].sort((a,b) => (b.score || 0) - (a.score || 0)).map((t, i) => (
               <div key={t.id} className="bg-slate-900 p-4 rounded-xl flex justify-between items-center">
-                <span className="font-bold">#{i+1} {t.name}</span>
+                <span className="font-bold flex items-center gap-2">
+                  {i < 3 ? getRankIcon(i) : <span className="w-5 text-center">#{i+1}</span>} 
+                  {t.name}
+                </span>
                 <span className="text-cyan-400 font-black">{t.score || 0} pts</span>
               </div>
             ))}
