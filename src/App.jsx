@@ -162,10 +162,10 @@ await addDoc(
         {activeTab === 'scan' && (
           <div className="bg-slate-900 p-8 rounded-xl text-center border border-slate-800">
             <h2 className="text-white mb-6">英雄簽到系統</h2>
-            <input autoFocus className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-white" placeholder="掃描代碼以簽到..." value={scanInput} onChange={(e) => { setScanInput(e.target.value); if(e.target.value.length >= 3) processScan(e.target.value); }} />
+            <input autoFocus className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-white" placeholder="掃描代碼以簽到..." value={scanInput} onChange={(e) => { setScanInput(e.target.value); if(e.target.value.length >= 10) processScan(e.target.value); }} />
             {scanResult && (
               <div className={`mt-8 p-6 rounded-xl border ${scanResult.type === 'success' ? 'border-cyan-500' : 'border-red-500'}`}>
-                {scanResult.type === 'success' ? <><h2 className="text-xl font-bold">{scanResult.name}</h2><p>隊伍: {scanResult.teamName}</p><p className="mt-2 text-cyan-400">目前分數: {scanResult.teamScore}</p></> : <p>查無代碼</p>}
+                {scanResult.type === 'success' ? <><h2 className="text-xl font-bold">實習英雄：{scanResult.name}</h2><p>隊伍: {scanResult.teamName}</p><p className="mt-2 text-cyan-400">目前分數: {scanResult.teamScore}</p></> : <p>查無此人</p>}
               </div>
             )}
           </div>
