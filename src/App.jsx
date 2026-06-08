@@ -31,72 +31,30 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [accessCode, setAccessCode] = useState('');
   const [scanInput, setScanInput] = useState('');
-
+  const [scanTimer, setScanTimer] = useState(null);
+  
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
     signInAnonymously(auth).catch(console.error);
     return () => unsubscribe();
-  }, []);
+  }, []);;
 
  useEffect(() => {
-  if (!user) return;
+    if (!user) return;
+    const teamsCol = collection(db, 'artifacts', appId, 'shared', 'teams', 'data');
+    const unsubscribe = onSnapshot(query(teamsCol), (snapshot) => {
+      setTeams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsubscribe();
+  }, [user]);
 
-  const teamsCol = collection(
-    db,
-    'artifacts',
-    appId,
-    'shared',
-    'teams',
-    'data'
-  );
-
-  const unsubscribe = onSnapshot(
-    query(teamsCol),
-    (snapshot) => {
-      setTeams(
-        snapshot.docs.map(d => ({
-          id: d.id,
-          ...d.data()
-        }))
-      );
-    }
-  );
-
-  return () => unsubscribe();
-}, [user]);
-
-const safeDoc = (id) =>
-  doc(
-    db,
-    'artifacts',
-    appId,
-    'shared',
-    'teams',
-    'data',
-    id
-  );
+  const safeDoc = (id) => doc(db, 'artifacts', appId, 'shared', 'teams', 'data', id);
   
   const addTeam = async () => {
-    if (!newTeamName.trim() || !user) return;
-await addDoc(
-  collection(
-    db,
-    'artifacts',
-    appId,
-    'shared',
-    'teams',
-    'data'
-  ),
-  {
-    name: newTeamName,
-    score: 0,
-    members: []
-  }
-);
-    setNewTeamName('');
-  };
+      if (!newTeamName.trim() || !user) return;
+      await addDoc(collection(db, 'artifacts', appId, 'shared', 'teams', 'data'), { name: newTeamName, score: 0, members: [] });
+      setNewTeamName('');
+    };
 
   const updateTeam = async (id, data) => await updateDoc(safeDoc(id), data);
   const deleteTeam = async (id) => await deleteDoc(safeDoc(id));
@@ -109,9 +67,7 @@ await addDoc(
   };
 
   const saveTeamName = async (id) => {
-    if (editName.trim()) {
-      await updateTeam(id, { name: editName });
-    }
+    if (editName.trim()) await updateTeam(id, { name: editName });
     setEditingTeamId(null);
   };
 
@@ -140,6 +96,15 @@ await addDoc(
     const colors = ["text-yellow-400", "text-slate-300", "text-amber-700"];
     return <Trophy className={colors[index] || "text-slate-500"} size={20} />;
   };
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setScanInput(val);
+    if (scanTimer) clearTimeout(scanTimer);
+    const timer = setTimeout(() => {
+      if (val.trim().length > 0) processScan(val);
+    }, 400);
+    setScanTimer(timer);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 p-6 text-slate-200">
@@ -161,22 +126,30 @@ await addDoc(
       <div className="max-w-4xl mx-auto">
         {activeTab === 'scan' && (
           <div className="bg-slate-900 p-8 rounded-xl text-center border border-slate-800">
-            <h2 className="text-white mb-6">英雄簽到系統</h2>
+            <h2 className="text-white mb-6 font-bold text-xl">英雄簽到系統</h2>
             <input
               autoFocus
-              className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-white"
+              className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-transparent caret-transparent text-xl"
               placeholder="掃描代碼以簽到..."
               value={scanInput}
-              onChange={(e) => setScanInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  processScan(scanInput);
-                }
-              }}
+              onChange={handleInputChange}
+              onBlur={(e) => setTimeout(() => e.target.focus(), 100)}
             />
             {scanResult && (
-              <div className={`mt-8 p-6 rounded-xl border ${scanResult.type === 'success' ? 'border-cyan-500' : 'border-red-500'}`}>
-                {scanResult.type === 'success' ? <><h2 className="text-xl font-bold">實習英雄：{scanResult.name}</h2><p>隊伍: {scanResult.teamName}</p><p className="mt-2 text-cyan-400">目前分數: {scanResult.teamScore}</p></> : <p>查無此人</p>}
+              <div className={`mt-8 p-6 rounded-xl border ${scanResult.type === 'success' ? 'border-cyan-500' : 'border-red-500'} flex flex-col items-center`}>
+                {scanResult.type === 'success' ? (
+                    <>
+                        <CheckCircle2 className="text-green-500 mb-2" size={48} />
+                        <h2 className="text-2xl font-bold">見習英雄： {scanResult.name}</h2>
+                        <p className="text-slate-400">隊伍: {scanResult.teamName}</p>
+                        <p className="mt-2 text-cyan-400 font-bold text-lg">目前分數: {scanResult.teamScore}</p>
+                    </>
+                ) : (
+                    <>
+                        <XCircle className="text-red-500 mb-2" size={48} />
+                        <h2 className="text-xl font-bold">查無此人</h2>
+                    </>
+                )}
               </div>
             )}
           </div>
