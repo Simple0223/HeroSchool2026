@@ -13,6 +13,7 @@ const firebaseConfig = {
   appId: "1:72603879659:web:cf0ae2db0745dee66d56ae",
   measurementId: "G-CTEZ314RWJ"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -27,19 +28,20 @@ export default function App() {
   const [scoreInputs, setScoreInputs] = useState({});
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [editingMember, setEditingMember] = useState(null); // 新增：編輯成員狀態
   const [activeTab, setActiveTab] = useState('scan');
   const [scanResult, setScanResult] = useState(null);
   const [accessCode, setAccessCode] = useState('');
   const [scanInput, setScanInput] = useState('');
   const [scanTimer, setScanTimer] = useState(null);
-  
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
     signInAnonymously(auth).catch(console.error);
     return () => unsubscribe();
-  }, []);;
+  }, []);
 
- useEffect(() => {
+  useEffect(() => {
     if (!user) return;
     const teamsCol = collection(db, 'artifacts', appId, 'shared', 'teams', 'data');
     const unsubscribe = onSnapshot(query(teamsCol), (snapshot) => {
@@ -49,12 +51,12 @@ export default function App() {
   }, [user]);
 
   const safeDoc = (id) => doc(db, 'artifacts', appId, 'shared', 'teams', 'data', id);
-  
+
   const addTeam = async () => {
-      if (!newTeamName.trim() || !user) return;
-      await addDoc(collection(db, 'artifacts', appId, 'shared', 'teams', 'data'), { name: newTeamName, score: 0, members: [] });
-      setNewTeamName('');
-    };
+    if (!newTeamName.trim() || !user) return;
+    await addDoc(collection(db, 'artifacts', appId, 'shared', 'teams', 'data'), { name: newTeamName, score: 0, members: [] });
+    setNewTeamName('');
+  };
 
   const updateTeam = async (id, data) => await updateDoc(safeDoc(id), data);
   const deleteTeam = async (id) => await deleteDoc(safeDoc(id));
@@ -80,6 +82,15 @@ export default function App() {
     setScoreInputs(prev => ({ ...prev, [teamId]: '' }));
   };
 
+  // 新增：儲存成員編輯
+  const saveMember = async (team) => {
+    if (!editingMember.name || !editingMember.code) return;
+    const newMembers = [...(team.members || [])];
+    newMembers[editingMember.idx] = { name: editingMember.name, code: editingMember.code };
+    await updateTeam(team.id, { members: newMembers });
+    setEditingMember(null);
+  };
+
   const processScan = (inputCode) => {
     const code = inputCode.trim();
     let found = null;
@@ -90,20 +101,6 @@ export default function App() {
     setScanResult(found ? { type: 'success', ...found } : { type: 'error' });
     setTimeout(() => setScanResult(null), 3000);
     setScanInput('');
-  };
-
-  const getRankIcon = (index) => {
-    const colors = ["text-yellow-400", "text-slate-300", "text-amber-700"];
-    return <Trophy className={colors[index] || "text-slate-500"} size={20} />;
-  };
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setScanInput(val);
-    if (scanTimer) clearTimeout(scanTimer);
-    const timer = setTimeout(() => {
-      if (val.trim().length > 0) processScan(val);
-    }, 400);
-    setScanTimer(timer);
   };
 
   return (
@@ -123,16 +120,17 @@ export default function App() {
         </div>
       </header>
 
+      {}
       <div className="max-w-4xl mx-auto">
         {activeTab === 'scan' && (
           <div className="bg-slate-900 p-8 rounded-xl text-center border border-slate-800">
             <h2 className="text-white mb-6 font-bold text-xl">英雄簽到系統</h2>
             <input
               autoFocus
-              className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-transparent caret-transparent text-xl"
+              className="w-full bg-slate-950 p-4 rounded-xl border border-slate-700 text-center text-xl"
               placeholder="掃描代碼以簽到..."
               value={scanInput}
-              onChange={handleInputChange}
+              onChange={(e) => { setScanInput(e.target.value); if(e.target.value.length > 3) processScan(e.target.value); }}
               onBlur={(e) => setTimeout(() => e.target.focus(), 100)}
             />
             {scanResult && (
@@ -154,12 +152,15 @@ export default function App() {
             )}
           </div>
         )}
+
         {activeTab === 'login' && !isLoggedIn && (
           <div className="bg-slate-900 p-8 rounded-xl border border-slate-800 text-center max-w-sm mx-auto">
             <input type="password" placeholder="輸入管理員授權碼" onChange={(e) => setAccessCode(e.target.value)} className="w-full bg-slate-950 border border-slate-700 p-3 rounded mb-4" />
             <button onClick={() => { if(accessCode === 'hero2026') setIsLoggedIn(true); }} className="w-full bg-cyan-600 py-2 rounded">驗證進入</button>
           </div>
         )}
+
+        {}
         {activeTab === 'manage' && isLoggedIn && (
           <div className="space-y-6">
             <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex gap-2">
@@ -180,34 +181,55 @@ export default function App() {
                         <button onClick={() => { setEditingTeamId(t.id); setEditName(t.name); }} className="text-slate-500 hover:text-white"><Edit2 size={16}/></button>
                     </h3>
                   )}
-                  <div className="flex items-center gap-2">
-                    <input type="number" className="w-16 bg-slate-950 p-1 rounded text-center text-sm" placeholder="數值" onChange={(e) => setScoreInputs({...scoreInputs, [t.id]: e.target.value})} value={scoreInputs[t.id] || ''} />
-                    <button onClick={() => handleScoreChange(t.id, 'add')} className="bg-green-900 p-1 rounded text-green-400"><ChevronUp size={20}/></button>
-                    <button onClick={() => handleScoreChange(t.id, 'sub')} className="bg-red-900 p-1 rounded text-red-400"><ChevronDown size={20}/></button>
-                    <button onClick={() => deleteTeam(t.id)} className="text-red-500 ml-4"><Trash2 size={16}/></button>
-                  </div>
+                  <button onClick={() => deleteTeam(t.id)} className="text-red-500"><Trash2 size={18}/></button>
                 </div>
+                
+                <div className="flex gap-2 mb-4">
+                    <input type="number" className="bg-slate-950 p-1 w-20 rounded" value={scoreInputs[t.id] || ''} onChange={(e) => setScoreInputs(prev => ({...prev, [t.id]: e.target.value}))} />
+                    <button onClick={() => handleScoreChange(t.id, 'add')} className="bg-green-700 px-2 rounded"><ChevronUp size={16}/></button>
+                    <button onClick={() => handleScoreChange(t.id, 'sub')} className="bg-red-700 px-2 rounded"><ChevronDown size={16}/></button>
+                </div>
+
                 <div className="flex gap-2 mb-2">
-                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="姓名" value={memberData.name} onChange={(e) => setMemberData({...memberData, name: e.target.value})}/>
-                  <input className="bg-slate-950 p-2 rounded w-1/3 text-sm" placeholder="代碼" value={memberData.code} onChange={(e) => setMemberData({...memberData, code: e.target.value})}/>
-                  <button onClick={() => addMember(t)} className="bg-cyan-800 p-2 rounded flex-1"><UserPlus size={16}/></button>
+                    <input className="bg-slate-950 p-1 w-full rounded" placeholder="成員名" value={memberData.name} onChange={(e) => setMemberData({...memberData, name: e.target.value})} />
+                    <input className="bg-slate-950 p-1 w-20 rounded" placeholder="代碼" value={memberData.code} onChange={(e) => setMemberData({...memberData, code: e.target.value})} />
+                    <button onClick={() => addMember(t)} className="bg-blue-700 px-2 rounded"><UserPlus size={16}/></button>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {(t.members || []).map((m, i) => <span key={i} className="bg-slate-800 px-2 py-1 rounded text-xs">{m.name} (#{m.code})</span>)}
+
+                <div className="space-y-1">
+                    {t.members?.map((m, idx) => (
+                        editingMember?.teamId === t.id && editingMember?.idx === idx ? (
+                            <div key={idx} className="flex gap-1 items-center bg-slate-950 p-1 rounded">
+                                <input className="bg-slate-800 p-1 w-full text-sm rounded" value={editingMember.name} onChange={(e) => setEditingMember({...editingMember, name: e.target.value})} />
+                                <input className="bg-slate-800 p-1 w-16 text-sm rounded" value={editingMember.code} onChange={(e) => setEditingMember({...editingMember, code: e.target.value})} />
+                                <button onClick={() => saveMember(t)} className="text-green-400"><Save size={16}/></button>
+                            </div>
+                        ) : (
+                            <div key={idx} className="flex justify-between bg-slate-950 p-2 rounded text-sm text-slate-400">
+                                <span>{m.name} ({m.code})</span>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setEditingMember({ teamId: t.id, idx, name: m.name, code: m.code })} className="text-blue-400"><Edit2 size={14}/></button>
+                                    <button onClick={() => updateTeam(t.id, { members: t.members.filter((_,i) => i !== idx) })} className="text-red-500"><UserMinus size={14}/></button>
+                                </div>
+                            </div>
+                        )
+                    ))}
                 </div>
               </div>
             ))}
           </div>
         )}
+
         {activeTab === 'rank' && isLoggedIn && (
-          <div className="space-y-4">
-            {[...teams].sort((a,b) => (b.score || 0) - (a.score || 0)).map((t, i) => (
-              <div key={t.id} className="bg-slate-900 p-4 rounded-xl flex justify-between items-center">
-                <span className="font-bold flex items-center gap-2">
-                  {i < 3 ? getRankIcon(i) : <span className="w-5 text-center">#{i+1}</span>} 
-                  {t.name}
-                </span>
-                <span className="text-cyan-400 font-black">{t.score || 0} pts</span>
+          <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+            <h2 className="text-xl font-bold mb-4">英雄學院排行榜</h2>
+            {[...teams].sort((a,b) => (b.score||0) - (a.score||0)).map((t, i) => (
+              <div key={t.id} className="flex items-center justify-between p-4 border-b border-slate-800 last:border-0">
+                 <div className="flex items-center gap-3">
+                    {i < 3 ? <Trophy size={20} className={i === 0 ? "text-yellow-400" : i === 1 ? "text-slate-300" : "text-amber-700"} /> : <span className="w-5 text-center font-mono">{i+1}</span>}
+                    {t.name}
+                 </div>
+                 <div className="font-mono font-bold text-cyan-400">{t.score || 0} pts</div>
               </div>
             ))}
           </div>
